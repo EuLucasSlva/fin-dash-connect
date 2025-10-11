@@ -14,7 +14,172 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      api_keys: {
+        Row: {
+          api_key: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_used_at: string | null
+          name: string
+          user_id: string
+        }
+        Insert: {
+          api_key: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          name?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_connections: {
+        Row: {
+          access_token: string | null
+          bank_name: string
+          connector_name: string | null
+          created_at: string
+          id: string
+          last_sync_at: string | null
+          pluggy_item_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          bank_name: string
+          connector_name?: string | null
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          pluggy_item_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          bank_name?: string
+          connector_name?: string | null
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          pluggy_item_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          balance: number | null
+          bank_connection_id: string
+          category: string | null
+          created_at: string
+          description: string
+          id: string
+          pluggy_transaction_id: string
+          transaction_date: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          balance?: number | null
+          bank_connection_id: string
+          category?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          pluggy_transaction_id: string
+          transaction_date: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          balance?: number | null
+          bank_connection_id?: string
+          category?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          pluggy_transaction_id?: string
+          transaction_date?: string
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_bank_connection_id_fkey"
+            columns: ["bank_connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
