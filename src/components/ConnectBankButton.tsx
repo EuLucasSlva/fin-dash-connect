@@ -39,34 +39,45 @@ const ConnectBankButton = ({ userId }: ConnectBankButtonProps) => {
     }
   };
 
-  const handleSuccess = async (itemData: any) => {
-    console.log("Conexão bem-sucedida:", itemData);
+  const handleEvent = async (event: any) => {
+    console.log("Pluggy event:", event);
     
-    // Salvar conexão no banco de dados
-    try {
-      const { error } = await supabase
-        .from('bank_connections')
-        .insert({
-          user_id: userId,
-          pluggy_item_id: itemData.item.id,
-          bank_name: itemData.item.connector.name,
-          connector_name: itemData.item.connector.name,
-          status: 'active'
-        });
-
-      if (error) throw error;
-
-      toast.success("Conta bancária conectada com sucesso!");
-      setConnectToken(null);
-      setLoading(false);
+    // Capturar evento de sucesso
+    if (event.type === 'success' && event.data?.item) {
+      const itemData = event.data;
+      console.log("Conexão bem-sucedida:", itemData);
       
-      // Recarregar página para atualizar dados
-      window.location.reload();
-    } catch (error: any) {
-      console.error("Erro ao salvar conexão:", error);
-      toast.error("Erro ao salvar conexão bancária");
-      setLoading(false);
+      // Salvar conexão no banco de dados
+      try {
+        const { error } = await supabase
+          .from('bank_connections')
+          .insert({
+            user_id: userId,
+            pluggy_item_id: itemData.item.id,
+            bank_name: itemData.item.connector.name,
+            connector_name: itemData.item.connector.name,
+            status: 'active'
+          });
+
+        if (error) throw error;
+
+        toast.success("Conta bancária conectada com sucesso!");
+        setConnectToken(null);
+        setLoading(false);
+        
+        // Recarregar página para atualizar dados
+        window.location.reload();
+      } catch (error: any) {
+        console.error("Erro ao salvar conexão:", error);
+        toast.error("Erro ao salvar conexão bancária");
+        setLoading(false);
+      }
     }
+  };
+
+  const handleSuccess = async (itemData: any) => {
+    console.log("onSuccess chamado:", itemData);
+    await handleEvent({ type: 'success', data: itemData });
   };
 
   const handleError = (error: any) => {
@@ -108,6 +119,7 @@ const ConnectBankButton = ({ userId }: ConnectBankButtonProps) => {
           onError={handleError}
           onClose={handleClose}
           onOpen={handleOpen}
+          onEvent={handleEvent}
           includeSandbox={true}
           updateItem={undefined}
           language="pt"
