@@ -81,6 +81,10 @@ const ConnectBankButton = ({ userId }: ConnectBankButtonProps) => {
     setLoading(false);
   };
 
+  const handleOpen = () => {
+    console.log("Widget Pluggy aberto");
+  };
+
   return (
     <>
       <Button onClick={handleConnect} disabled={loading} size="lg" className="w-full md:w-auto">
@@ -103,7 +107,9 @@ const ConnectBankButton = ({ userId }: ConnectBankButtonProps) => {
           onSuccess={handleSuccess}
           onError={handleError}
           onClose={handleClose}
+          onOpen={handleOpen}
           includeSandbox={true}
+          updateItem={undefined}
           language="pt"
         />
       )}
