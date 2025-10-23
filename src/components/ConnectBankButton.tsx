@@ -7,9 +7,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface ConnectBankButtonProps {
   userId?: string;
+  onSuccess?: () => void;
 }
 
-const ConnectBankButton = ({ userId }: ConnectBankButtonProps) => {
+const ConnectBankButton = ({ userId, onSuccess }: ConnectBankButtonProps) => {
   const [loading, setLoading] = useState(false);
   const [connectToken, setConnectToken] = useState<string | null>(null);
 
@@ -87,10 +88,12 @@ const ConnectBankButton = ({ userId }: ConnectBankButtonProps) => {
         
         setLoading(false);
         
-        // Recarregar página para mostrar dados
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+        // Chamar callback de sucesso
+        if (onSuccess) {
+          setTimeout(() => {
+            onSuccess();
+          }, 2000);
+        }
       } catch (error: any) {
         console.error("Erro ao salvar conexão:", error);
         toast.error("Erro ao salvar conexão bancária");

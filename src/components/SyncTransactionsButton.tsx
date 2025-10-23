@@ -6,9 +6,10 @@ import { toast } from "sonner";
 
 interface SyncTransactionsButtonProps {
   userId?: string;
+  onSuccess?: () => void;
 }
 
-export function SyncTransactionsButton({ userId }: SyncTransactionsButtonProps) {
+export function SyncTransactionsButton({ userId, onSuccess }: SyncTransactionsButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleSync = async () => {
@@ -39,10 +40,12 @@ export function SyncTransactionsButton({ userId }: SyncTransactionsButtonProps) 
       if (data.success) {
         toast.success(`${data.transactions} transações sincronizadas!`);
         
-        // Recarregar página para mostrar novas transações
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        // Chamar callback de sucesso
+        if (onSuccess) {
+          setTimeout(() => {
+            onSuccess();
+          }, 1500);
+        }
       } else {
         toast.error(data.message || "Erro na sincronização");
       }

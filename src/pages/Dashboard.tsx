@@ -4,16 +4,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, TrendingUp, TrendingDown, Wallet, Key } from "lucide-react";
+import { LogOut, TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import ConnectBankButton from "@/components/ConnectBankButton";
 import TransactionsList from "@/components/TransactionsList";
 import ApiKeySection from "@/components/ApiKeySection";
 import { SyncTransactionsButton } from "@/components/SyncTransactionsButton";
 
+interface DashboardStats {
+  totalBalance: number;
+  monthIncome: number;
+  monthExpenses: number;
+}
+
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalBalance: 0,
+    monthIncome: 0,
+    monthExpenses: 0,
+  });
+  const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,6 +33,8 @@ const Dashboard = () => {
       setUser(session?.user ?? null);
       if (!session) {
         navigate("/auth");
+      } else {
+        loadDashboardStats(session.user.id);
       }
     });
 
@@ -30,11 +44,66 @@ const Dashboard = () => {
         navigate("/auth");
       } else {
         setLoading(false);
+        loadDashboardStats(session.user.id);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, refreshKey]);
+
+  const loadDashboardStats = async (userId: string) => {
+    try {
+      // Buscar transações do mês atual
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      if (transactions && transactions.length > 0) {
+        // Calcular saldo total (última transação com balance)
+        const lastBalance = transactions
+          .filter(t => t.balance !== null)
+          .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())[0];
+        
+        const totalBalance = lastBalance?.balance || 0;
+
+        // Calcular entradas e saídas do mês
+        const monthTransactions = transactions.filter(t => {
+          const date = new Date(t.transaction_date);
+          return date >= firstDayOfMonth && date <= lastDayOfMonth;
+        });
+
+        const monthIncome = monthTransactions
+          .filter(t => t.transaction_type === 'CREDIT')
+          .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
+
+        const monthExpenses = Math.abs(
+          monthTransactions
+            .filter(t => t.transaction_type === 'DEBIT')
+            .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0)
+        );
+
+        setStats({
+          totalBalance,
+          monthIncome,
+          monthExpenses,
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
+    toast.success('Dashboard atualizado!');
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -79,8 +148,12 @@ const Dashboard = () => {
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-primary">R$ 0,00</div>
-              <p className="text-xs text-muted-foreground">Conecte uma conta bancária</p>
+              <div className="text-2xl font-bold text-primary">
+                R$ {stats.totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {stats.totalBalance === 0 ? 'Conecte uma conta bancária' : 'Saldo atualizado'}
+              </p>
             </CardContent>
           </Card>
 
@@ -90,8 +163,12 @@ const Dashboard = () => {
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">R$ 0,00</div>
-              <p className="text-xs text-muted-foreground">Aguardando transações</p>
+              <div className="text-2xl font-bold text-green-600">
+                R$ {stats.monthIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {stats.monthIncome === 0 ? 'Aguardando transações' : 'Entradas do mês'}
+              </p>
             </CardContent>
           </Card>
 
@@ -101,8 +178,12 @@ const Dashboard = () => {
               <TrendingDown className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">R$ 0,00</div>
-              <p className="text-xs text-muted-foreground">Aguardando transações</p>
+              <div className="text-2xl font-bold text-red-600">
+                R$ {stats.monthExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {stats.monthExpenses === 0 ? 'Aguardando transações' : 'Saídas do mês'}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -115,14 +196,17 @@ const Dashboard = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <ConnectBankButton userId={user?.id} />
-            <div className="pt-2 border-t">
-              <SyncTransactionsButton userId={user?.id} />
+            <ConnectBankButton userId={user?.id} onSuccess={handleRefresh} />
+            <div className="pt-2 border-t flex gap-2">
+              <SyncTransactionsButton userId={user?.id} onSuccess={handleRefresh} />
+              <Button onClick={handleRefresh} variant="outline" size="sm">
+                Atualizar Dashboard
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        <TransactionsList userId={user?.id} />
+        <TransactionsList key={refreshKey} userId={user?.id} />
 
         <ApiKeySection userId={user?.id} />
       </main>
