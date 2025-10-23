@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import ConnectBankButton from "@/components/ConnectBankButton";
 import TransactionsList from "@/components/TransactionsList";
 import ApiKeySection from "@/components/ApiKeySection";
+import { SyncTransactionsButton } from "@/components/SyncTransactionsButton";
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -113,8 +114,11 @@ const Dashboard = () => {
               Conecte sua conta do Nubank, Itaú ou Santander para começar
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <ConnectBankButton userId={user?.id} />
+            <div className="pt-2 border-t">
+              <SyncTransactionsButton userId={user?.id} />
+            </div>
           </CardContent>
         </Card>
 

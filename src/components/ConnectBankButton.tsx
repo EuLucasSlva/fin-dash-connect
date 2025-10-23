@@ -61,12 +61,36 @@ const ConnectBankButton = ({ userId }: ConnectBankButtonProps) => {
 
         if (error) throw error;
 
-        toast.success("Conta bancária conectada com sucesso!");
+        toast.success("Conta bancária conectada! Sincronizando transações...");
         setConnectToken(null);
+        
+        // Sincronizar transações automaticamente
+        try {
+          const { data: session } = await supabase.auth.getSession();
+          if (session?.session?.access_token) {
+            const { data: syncData, error: syncError } = await supabase.functions.invoke('sync-transactions', {
+              headers: {
+                Authorization: `Bearer ${session.session.access_token}`,
+              },
+            });
+
+            if (syncError) {
+              console.error("Erro ao sincronizar:", syncError);
+              toast.error("Conta conectada, mas erro ao buscar transações. Use o botão 'Sincronizar'.");
+            } else if (syncData?.success) {
+              toast.success(`${syncData.transactions} transações sincronizadas!`);
+            }
+          }
+        } catch (error: any) {
+          console.error("Erro na sincronização automática:", error);
+        }
+        
         setLoading(false);
         
-        // Recarregar página para atualizar dados
-        window.location.reload();
+        // Recarregar página para mostrar dados
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
       } catch (error: any) {
         console.error("Erro ao salvar conexão:", error);
         toast.error("Erro ao salvar conexão bancária");
