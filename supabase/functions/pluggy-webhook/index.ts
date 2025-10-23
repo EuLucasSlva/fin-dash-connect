@@ -91,10 +91,22 @@ serve(async (req) => {
         );
       }
 
+      // Buscar o ID da conexão no banco
+      const { data: connectionData, error: connectionError } = await supabaseClient
+        .from('bank_connections')
+        .select('id')
+        .eq('pluggy_item_id', event.data.itemId)
+        .single();
+
+      if (connectionError || !connectionData) {
+        console.error('Conexão não encontrada no banco');
+        throw new Error('Conexão não encontrada');
+      }
+
       // Inserir transações no banco
       const transactionsToInsert = transactions.map((tx: any) => ({
         user_id: bankConnection.user_id,
-        bank_connection_id: event.data.itemId,
+        bank_connection_id: connectionData.id,
         pluggy_transaction_id: tx.id,
         description: tx.description || 'Sem descrição',
         amount: parseFloat(tx.amount || 0),
