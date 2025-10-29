@@ -1,3 +1,4 @@
+# supabase/config.toml
 project_id = "hhshfskglojdkdsuqugn"
 
 [functions.pluggy-webhook]
@@ -10,4 +11,8 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.transactions-api]
-verify_jwt = false
+verify_jwt = false # Mantém false pois usa API key
+
+# --- ADICIONAR NOVA FUNÇÃO ---
+[functions.disconnect-bank]
+verify_jwt = true # Requer autenticação do usuário

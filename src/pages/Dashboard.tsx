@@ -1,107 +1,66 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom"; // Import Link
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { LogOut, Loader2, ArrowRight } from "lucide-react"; // Import Loader2 e ArrowRight
 import { toast } from "sonner";
 import ConnectBankButton from "@/components/ConnectBankButton";
-import TransactionsList from "@/components/TransactionsList";
 import ApiKeySection from "@/components/ApiKeySection";
-import { SyncTransactionsButton } from "@/components/SyncTransactionsButton";
+import { SyncTransactionsButton } from "@/components/SyncTransactionsButton"; // Correção: remover .tsx
+import useFinancialData from "@/hooks/useFinancialData";
 
-interface DashboardStats {
-  totalBalance: number;
-  monthIncome: number;
-  monthExpenses: number;
-}
+// --- NOVOS COMPONENTES DE SEÇÃO ---
+import FinancialSummary from "@/components/dashboard/FinancialSummary";
+import SpendingDistribution from "@/components/dashboard/SpendingDistribution";
+import ConnectedAccounts from "@/components/dashboard/ConnectedAccounts";
+import CreditCardAnalysis from "@/components/dashboard/CreditCardAnalysis";
+import CashFlowChart from "@/components/dashboard/CashFlowChart";
+import TopClientsSuppliers from "@/components/dashboard/TopClientsSuppliers";
+import GoalsComparison from "@/components/dashboard/GoalsComparison";
+import InsightsAlerts from "@/components/dashboard/InsightsAlerts";
+import DataExport from "@/components/dashboard/DataExport";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({
-    totalBalance: 0,
-    monthIncome: 0,
-    monthExpenses: 0,
-  });
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [initialLoading, setInitialLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-      if (!session) {
-        navigate("/auth");
-      } else {
-        loadDashboardStats(session.user.id);
-      }
-    });
+  // Utiliza o hook para buscar e processar os dados
+  const {
+    data: financialData,
+    isLoading: isLoadingData,
+    refetch: refetchFinancialData,
+  } = useFinancialData(user?.id);
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (!session) {
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session) {
         navigate("/auth");
       } else {
-        setLoading(false);
-        loadDashboardStats(session.user.id);
+        setUser(session.user);
+        setInitialLoading(false);
       }
+    };
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+        if (!session) {
+            setUser(null);
+            navigate("/auth");
+        } else if (session.user?.id !== user?.id) {
+             setUser(session.user);
+        }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, refreshKey]);
-
-  const loadDashboardStats = async (userId: string) => {
-    try {
-      // Buscar transações do mês atual
-      const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-      const { data: transactions, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (error) throw error;
-
-      if (transactions && transactions.length > 0) {
-        // Calcular saldo total (última transação com balance)
-        const lastBalance = transactions
-          .filter(t => t.balance !== null)
-          .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())[0];
-        
-        const totalBalance = lastBalance?.balance || 0;
-
-        // Calcular entradas e saídas do mês
-        const monthTransactions = transactions.filter(t => {
-          const date = new Date(t.transaction_date);
-          return date >= firstDayOfMonth && date <= lastDayOfMonth;
-        });
-
-        const monthIncome = monthTransactions
-          .filter(t => t.transaction_type === 'CREDIT')
-          .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
-
-        const monthExpenses = Math.abs(
-          monthTransactions
-            .filter(t => t.transaction_type === 'DEBIT')
-            .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0)
-        );
-
-        setStats({
-          totalBalance,
-          monthIncome,
-          monthExpenses,
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
-    }
-  };
+  }, [navigate, user?.id]);
 
   const handleRefresh = () => {
-    setRefreshKey(prev => prev + 1);
+    refetchFinancialData();
     toast.success('Dashboard atualizado!');
   };
 
@@ -111,14 +70,16 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  if (loading) {
+  // Indicador de carregamento inicial da sessão
+  if (initialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
 
+  // Estrutura principal do Dashboard
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
@@ -133,83 +94,105 @@ const Dashboard = () => {
         </div>
       </header>
 
+      {/* REMOVIDA A TAG <main> DUPLICADA DAQUI */}
       <main className="container mx-auto px-4 py-8 space-y-8">
-        <div className="space-y-2">
-          <h2 className="text-3xl font-bold">Dashboard</h2>
-          <p className="text-muted-foreground">
-            Bem-vindo, {user?.email}! Conecte suas contas e visualize suas finanças.
-          </p>
+        {/* Título e Botão "Ver Detalhes" (corrigido para não duplicar) */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="space-y-2">
+            <h2 className="text-3xl font-bold">Dashboard Financeiro Inteligente</h2>
+            <p className="text-muted-foreground">
+              Visão geral das suas finanças, {user?.email}.
+            </p>
+          </div>
+          <Button asChild variant="outline">
+            <Link to="/dashboard/details">
+              Ver Detalhes
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Saldo Total</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">
-                R$ {stats.totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {stats.totalBalance === 0 ? 'Conecte uma conta bancária' : 'Saldo atualizado'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Entradas (mês)</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                R$ {stats.monthIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {stats.monthIncome === 0 ? 'Aguardando transações' : 'Entradas do mês'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Saídas (mês)</CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">
-                R$ {stats.monthExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {stats.monthExpenses === 0 ? 'Aguardando transações' : 'Saídas do mês'}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Conectar Conta Bancária</CardTitle>
-            <CardDescription>
-              Conecte sua conta do Nubank, Itaú ou Santander para começar
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <ConnectBankButton userId={user?.id} onSuccess={handleRefresh} />
-            <div className="pt-2 border-t flex gap-2">
-              <SyncTransactionsButton userId={user?.id} onSuccess={handleRefresh} />
-              <Button onClick={handleRefresh} variant="outline" size="sm">
-                Atualizar Dashboard
-              </Button>
+        {/* Indicador de Carregamento dos Dados */}
+        {isLoadingData && (
+          <>
+            {/* Skeleton para Resumo Financeiro */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
             </div>
-          </CardContent>
-        </Card>
+             {/* Skeleton para Gráficos e Tabelas */}
+             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Skeleton className="lg:col-span-2 h-[400px] w-full" />
+                <Skeleton className="h-[400px] w-full" />
+             </div>
+             {/* Adicione mais Skeletons conforme necessário */}
+          </>
+        )}
 
-        <TransactionsList key={refreshKey} userId={user?.id} />
+        {/* Renderiza as seções com os dados do hook */}
+        {financialData && !isLoadingData && (
+          <>
+            {/* === SEÇÃO 1: RESUMO FINANCEIRO === */}
+            <FinancialSummary stats={financialData.summary} />
 
-        <ApiKeySection userId={user?.id} />
-      </main>
+             {/* === SEÇÃO 2: GRÁFICOS PRINCIPAIS === */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                 <CashFlowChart dailyCashFlow={financialData.cashFlow.daily} />
+              </div>
+              <SpendingDistribution categorySpending={financialData.spendingDistribution} />
+            </div>
+
+            {/* === SEÇÃO 3: CARTÃO E TOP CLIENTES/FORNECEDORES === */}
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                 <CreditCardAnalysis creditCardData={financialData.creditCardAnalysis} />
+                 <TopClientsSuppliers clients={financialData.topClients} suppliers={financialData.topSuppliers} />
+             </div>
+
+             {/* === SEÇÃO 4: CONTAS CONECTADAS === */}
+             <ConnectedAccounts connections={financialData.connections} userId={user?.id} onSyncSuccess={handleRefresh} />
+
+            {/* === SEÇÃO 5: METAS E INSIGHTS === */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <GoalsComparison goals={financialData.goals} />
+              <InsightsAlerts insights={financialData.insights} />
+            </div>
+
+             {/* === SEÇÃO 6: EXPORTAÇÃO E API === */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <DataExport transactions={financialData.rawTransactions} />
+                <ApiKeySection userId={user?.id} />
+             </div>
+
+             {/* Botões de Ação Globais */}
+             <div className="flex gap-2 pt-4 border-t">
+                {/* O SyncTransactionsButton principal agora está dentro de ConnectedAccounts */}
+                <Button onClick={handleRefresh} variant="outline" size="sm">
+                   Atualizar Dados do Dashboard
+                </Button>
+            </div>
+          </>
+        )}
+
+         {/* Seção de conexão caso não haja dados e não esteja carregando */}
+         {!isLoadingData && (!financialData || financialData.connections.length === 0) && (
+             <Card>
+                 <CardHeader>
+                     <CardTitle>Conecte sua Primeira Conta</CardTitle>
+                     <CardDescription>
+                         Conecte sua conta do Nubank, Itaú ou Santander para começar a visualizar seus dados.
+                     </CardDescription>
+                 </CardHeader>
+                 <CardContent className="flex flex-col sm:flex-row gap-4 items-start">
+                     <ConnectBankButton userId={user?.id} onSuccess={handleRefresh} />
+                 </CardContent>
+             </Card>
+         )}
+
+      </main> {/* Fim da tag <main> correta */}
     </div>
   );
 };

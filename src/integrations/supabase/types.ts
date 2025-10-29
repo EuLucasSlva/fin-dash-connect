@@ -99,6 +99,119 @@ export type Database = {
           },
         ]
       }
+      credit_card_accounts: {
+        Row: {
+          available_credit_limit: number | null
+          bank_connection_id: string
+          brand: string | null
+          close_day: number | null
+          created_at: string
+          credit_limit: number | null
+          due_day: number | null
+          id: string
+          name: string | null
+          pluggy_account_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available_credit_limit?: number | null
+          bank_connection_id: string
+          brand?: string | null
+          close_day?: number | null
+          created_at?: string
+          credit_limit?: number | null
+          due_day?: number | null
+          id?: string
+          name?: string | null
+          pluggy_account_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available_credit_limit?: number | null
+          bank_connection_id?: string
+          brand?: string | null
+          close_day?: number | null
+          created_at?: string
+          credit_limit?: number | null
+          due_day?: number | null
+          id?: string
+          name?: string | null
+          pluggy_account_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_card_accounts_bank_connection_id_fkey"
+            columns: ["bank_connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_card_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_card_bills: {
+        Row: {
+          amount: number
+          close_date: string | null
+          created_at: string
+          credit_card_account_id: string
+          due_date: string
+          id: string
+          minimum_payment: number | null
+          open_amount: number | null
+          paid_amount: number | null
+          pluggy_bill_id: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          close_date?: string | null
+          created_at?: string
+          credit_card_account_id: string
+          due_date: string
+          id?: string
+          minimum_payment?: number | null
+          open_amount?: number | null
+          paid_amount?: number | null
+          pluggy_bill_id: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          close_date?: string | null
+          created_at?: string
+          credit_card_account_id?: string
+          due_date?: string
+          id?: string
+          minimum_payment?: number | null
+          open_amount?: number | null
+          paid_amount?: number | null
+          pluggy_bill_id?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_card_bills_credit_card_account_id_fkey"
+            columns: ["credit_card_account_id"]
+            isOneToOne: false
+            referencedRelation: "credit_card_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
